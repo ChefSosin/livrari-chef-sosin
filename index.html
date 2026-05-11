@@ -187,14 +187,19 @@ function deleteClientRest(id){
   return fetch(FS_BASE+'/'+id+'?key='+MAPS_KEY,{method:'DELETE'});
 }
 
-// Geocoding via REST (fără Maps JS pentru geocoding)
+// Geocoding via Maps JS API (fără CORS)
+var geocoder=null;
 function geocodeAddr(addr){
-  return fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(addr)+'&region=ro&key='+MAPS_KEY)
-    .then(function(r){return r.json();})
-    .then(function(d){
-      if(d.status!=='OK'||!d.results.length) throw new Error('Adresă negăsită: '+addr);
-      return d.results[0].geometry.location;
+  if(!geocoder) geocoder=new google.maps.Geocoder();
+  return new Promise(function(res,rej){
+    geocoder.geocode({address:addr,region:'ro'},function(results,status){
+      if(status==='OK'&&results.length){
+        res({lat:results[0].geometry.location.lat(),lng:results[0].geometry.location.lng()});
+      } else {
+        rej(new Error('Adresă negăsită: '+addr+' ('+status+')'));
+      }
     });
+  });
 }
 
 // Routes API (nou, înlocuiește Distance Matrix deprecat)
@@ -324,6 +329,7 @@ function nnSolve(n,dm){
 }
 
 async function optimize(){
+  if(!mapsReady){showMsg('opt-msg','⚠️ Harta nu s-a încărcat încă. Așteaptă 2 secunde și încearcă din nou.');return;}
   if(!stops.length){showMsg('opt-msg','Adaugă cel puțin un punct de livrare.');return;}
   var fab=document.getElementById('fab-btn');
   document.getElementById('fab-spinner').style.display='';
