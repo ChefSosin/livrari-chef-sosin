@@ -107,7 +107,7 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
     <div id="tab-ruta">
       <div id="stop-list-wrap"><p class="empty">Nicio oprire adăugată încă.</p></div>
       <div id="opt-msg"></div>
-      <div class="row" style="margin-top:10px;gap:8px">
+      <div class="row" style="margin-top:10px">
         <button class="btn btn-danger btn-sm" onclick="clearRoute()" id="btn-clear" style="display:none">Golește</button>
         <button class="btn btn-outline btn-sm" onclick="openInMaps()" id="btn-maps" style="display:none">↗ Maps</button>
       </div>
@@ -131,17 +131,13 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
   <span id="fab-label">⚡ Optimizează</span>
 </button>
 
-<!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-
-<!-- Google Maps JS API -->
 <script>
 var MAPS_KEY='AIzaSyB7EFgDv4_98KNb5sLsly-jQriDfixlll4';
 var stops=[],savedClients=[],routeData=null;
 var geocoder,dirService,dirRenderer,mapObj,mapsReady=false;
 
-// ── Firebase ──────────────────────────────────────────
 firebase.initializeApp({
   apiKey:'AIzaSyB7EFgDv4_98KNb5sLsly-jQriDfixlll4',
   authDomain:'chef-sosin-livrari-4b835.firebaseapp.com',
@@ -151,19 +147,11 @@ firebase.initializeApp({
   appId:'1:958105992536:web:376e0d4d51970d5f19392d'
 });
 
-// Named database via REST (SDK compat nu suportă named DB)
 var FS='https://firestore.googleapis.com/v1/projects/chef-sosin-livrari-4b835/databases/adreseclienti/documents/clients';
 
-function dbOk(v){
-  var e=document.getElementById('db-status');
-  e.textContent=v?'🟢 DB':'🔴 DB';
-  e.className='db-status '+(v?'db-ok':'db-err');
-}
+function dbOk(v){var e=document.getElementById('db-status');e.textContent=v?'🟢 DB':'🔴 DB';e.className='db-status '+(v?'db-ok':'db-err');}
 
-function docToClient(d){
-  var f=d.fields||{};
-  return {id:d.name.split('/').pop(),name:(f.name||{}).stringValue||'',addr:(f.addr||{}).stringValue||'',createdAt:+((f.createdAt||{}).integerValue||0)};
-}
+function docToClient(d){var f=d.fields||{};return {id:d.name.split('/').pop(),name:(f.name||{}).stringValue||'',addr:(f.addr||{}).stringValue||'',createdAt:+((f.createdAt||{}).integerValue||0)};}
 
 function loadClients(){
   fetch(FS+'?key='+MAPS_KEY)
@@ -180,47 +168,41 @@ function saveClient(n,a){
 }
 function deleteClientRest(id){return fetch(FS+'/'+id+'?key='+MAPS_KEY,{method:'DELETE'});}
 
-// ── Maps JS API ───────────────────────────────────────
 window.onMapsReady=function(){
   geocoder=new google.maps.Geocoder();
   dirService=new google.maps.DirectionsService();
+  dirRenderer=new google.maps.DirectionsRenderer({suppressMarkers:false});
   mapsReady=true;
   loadClients();
 };
+
 (function(){
   var s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+MAPS_KEY+'&loading=async&callback=onMapsReady';
+  s.src='https://maps.googleapis.com/maps/api/js?key='+MAPS_KEY+'&callback=onMapsReady&loading=async';
   s.async=true;document.head.appendChild(s);
 })();
 
-function geocodeAddr(addr){
-  return new Promise(function(res,rej){
-    geocoder.geocode({address:addr,region:'ro'},function(results,status){
-      if(status==='OK'&&results.length) res(results[0].geometry.location);
-      else rej(new Error('Adresă negăsită: '+addr+' ['+status+']'));
-    });
-  });
-}
-
-// ── UI helpers ────────────────────────────────────────
 function applyPreset(){var v=document.getElementById('start-preset').value;if(v)document.getElementById('start-addr').value=v;}
+
 function showMsg(id,msg,type){
   var el=document.getElementById(id);
   el.innerHTML='<div class="msg msg-'+(type||'error')+'">'+msg+'</div>';
-  if(type==='info') return; // info rămâne până e suprascris
-  setTimeout(function(){el.innerHTML='';},6000);
+  if(type!=='info') setTimeout(function(){if(el.innerHTML.indexOf(msg)>-1)el.innerHTML='';},6000);
 }
+
 function showTab(tab,btn){
   document.getElementById('tab-ruta').style.display=tab==='ruta'?'':'none';
   document.getElementById('tab-clienti').style.display=tab==='clienti'?'':'none';
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   btn.classList.add('active');
 }
+
 function updateSavedSelect(){
   var s=document.getElementById('saved-sel');
   s.innerHTML='<option value="">— selectează client salvat —</option>'+
     savedClients.map(function(c,i){return '<option value="'+i+'">'+c.name+' — '+c.addr+'</option>';}).join('');
 }
+
 function renderSavedList(){
   var w=document.getElementById('saved-list-wrap');
   if(!savedClients.length){w.innerHTML='<p class="empty">Niciun client salvat.</p>';return;}
@@ -228,6 +210,7 @@ function renderSavedList(){
     return '<li class="stop-item"><div class="stop-info"><div class="stop-name">'+c.name+'</div><div class="stop-addr">'+c.addr+'</div></div><span class="stop-del" onclick="deleteClient(\''+c.id+'\')">×</span></li>';
   }).join('')+'</ul>';
 }
+
 function renderStops(){
   var w=document.getElementById('stop-list-wrap');
   document.getElementById('btn-clear').style.display=stops.length?'':'none';
@@ -239,7 +222,6 @@ function renderStops(){
   }).join('')+'</ul>';
 }
 
-// ── Acțiuni ───────────────────────────────────────────
 function addStop(){
   var name=document.getElementById('inp-name').value.trim();
   var addr=document.getElementById('inp-addr').value.trim();
@@ -253,6 +235,7 @@ function addStop(){
   routeData=null;document.getElementById('result-section').style.display='none';
   renderStops();showMsg('add-msg','„'+name+'" adăugat în rută.','info');
 }
+
 function addFromSaved(){
   var sel=document.getElementById('saved-sel');
   var idx=parseInt(sel.value);
@@ -263,121 +246,102 @@ function addFromSaved(){
   sel.value='';routeData=null;document.getElementById('result-section').style.display='none';
   renderStops();showMsg('add-msg','„'+c.name+'" adăugat.','info');
 }
+
 function removeStop(id){stops=stops.filter(function(s){return s.id!==id;});routeData=null;document.getElementById('result-section').style.display='none';renderStops();}
 function deleteClient(id){deleteClientRest(id).then(loadClients).catch(function(e){showMsg('add-msg','Eroare: '+e.message);});}
 function clearRoute(){stops=[];routeData=null;document.getElementById('result-section').style.display='none';renderStops();}
 
-// ── Optimizare ────────────────────────────────────────
+function fabReset(){
+  document.getElementById('fab-spinner').style.display='none';
+  document.getElementById('fab-label').textContent='⚡ Optimizează';
+  document.getElementById('fab-btn').disabled=false;
+}
+
 function optimize(){
-  if(!mapsReady){showMsg('opt-msg','Harta se încarcă, încearcă din nou în câteva secunde.');return;}
+  if(!mapsReady){showMsg('opt-msg','Harta nu e gata, mai așteaptă câteva secunde.');return;}
   if(!stops.length){showMsg('opt-msg','Adaugă cel puțin un punct de livrare.');return;}
 
-  var fab=document.getElementById('fab-btn');
   document.getElementById('fab-spinner').style.display='';
   document.getElementById('fab-label').textContent='Se calculează...';
-  fab.disabled=true;
-  showMsg('opt-msg','Calculez ruta optimă...','info');
+  document.getElementById('fab-btn').disabled=true;
+  showMsg('opt-msg','Calculez ruta...','info');
 
   var startAddr=document.getElementById('start-addr').value.trim()||'Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România';
+  var n=stops.length;
 
-  // Directions API cu optimizeWaypoints:true — Google optimizează ordinea
-  // Geocodez toate adresele întâi
-  var allAddrs=[startAddr].concat(stops.map(function(s){return s.addr;}));
-  Promise.all(allAddrs.map(geocodeAddr)).then(function(latLngs){
-    var startLatLng=latLngs[0];
-    var stopLatLngs=latLngs.slice(1);
+  // Dacă e o singură oprire, nu avem nevoie de optimizare waypointuri
+  var origin=startAddr;
+  var destination=n===1 ? stops[0].addr : startAddr;
+  var waypoints=n===1 ? [] : stops.map(function(s){return {location:s.addr,stopover:true};});
 
-    // computeRoutes REST API (nou, înlocuiește DirectionsService deprecat)
-    var intermediates=stopLatLngs.map(function(ll){
-      return {location:{latLng:{latitude:ll.lat(),longitude:ll.lng()}}};
+  dirService.route({
+    origin: origin,
+    destination: destination,
+    waypoints: waypoints,
+    optimizeWaypoints: n>1,
+    travelMode: google.maps.TravelMode.DRIVING,
+    region: 'ro'
+  }, function(result, status){
+    if(status!==google.maps.DirectionsStatus.OK){
+      showMsg('opt-msg','Eroare: '+status);
+      fabReset();return;
+    }
+
+    var route=result.routes[0];
+    var order=n>1 ? route.waypoint_order : [0];
+    var legs=route.legs;
+
+    var totalDist=0,totalDur=0;
+    legs.forEach(function(l){totalDist+=l.distance.value;totalDur+=l.duration.value;});
+
+    var km=(totalDist/1000).toFixed(1);
+    var h=Math.floor(totalDur/3600),mn=Math.round((totalDur%3600)/60);
+    var durStr=h>0?h+'h '+mn+'m':mn+' min';
+
+    document.getElementById('stats-bar').innerHTML=
+      '<div class="stat"><div class="stat-val">'+n+'</div><div class="stat-label">opriri</div></div>'+
+      '<div class="stat"><div class="stat-val">'+km+' km</div><div class="stat-label">distanță</div></div>'+
+      '<div class="stat"><div class="stat-val">'+durStr+'</div><div class="stat-label">timp est.</div></div>';
+
+    var html='<li class="stop-item"><div class="stop-num start">S</div><div class="stop-info"><div class="stop-name">Start</div><div class="stop-addr">'+startAddr+'</div></div><span class="badge badge-green">Plecare</span></li>';
+
+    order.forEach(function(idx,i){
+      var s=stops[idx];
+      var l=legs[i];
+      html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+l.distance.text+'<br>'+l.duration.text+'</div></li>';
     });
 
-    return fetch('https://routes.googleapis.com/directions/v2:computeRoutes',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'X-Goog-Api-Key':MAPS_KEY,
-        'X-Goog-FieldMask':'routes.duration,routes.distanceMeters,routes.optimizedIntermediateWaypointIndex,routes.legs,routes.polyline.encodedPolyline'
-      },
-      body:JSON.stringify({
-        origin:{location:{latLng:{latitude:startLatLng.lat(),longitude:startLatLng.lng()}}},
-        destination:{location:{latLng:{latitude:startLatLng.lat(),longitude:startLatLng.lng()}}},
-        intermediates:intermediates,
-        travelMode:'DRIVE',
-        optimizeWaypointOrder:true
-      })
-    }).then(function(r){return r.json();}).then(function(data){
-      if(!data.routes||!data.routes.length) throw new Error('Routes API: '+(data.error&&data.error.message||JSON.stringify(data)));
+    if(n>1){
+      var ll=legs[legs.length-1];
+      html+='<li class="stop-item"><div class="stop-num end">↩</div><div class="stop-info"><div class="stop-name">Retur</div><div class="stop-addr">'+startAddr+'</div></div><div class="stop-time">'+ll.distance.text+'<br>'+ll.duration.text+'</div></li>';
+    }
 
-      var route=data.routes[0];
-      var order=route.optimizedIntermediateWaypointIndex;
-      var legs=route.legs;
-      var totalDist=route.distanceMeters||0;
-      var totalDurSec=parseInt((route.duration||'0s').replace('s',''))||0;
+    document.getElementById('result-list').innerHTML=html;
+    document.getElementById('opt-msg').innerHTML='';
+    document.getElementById('result-section').style.display='';
+    document.getElementById('btn-maps').style.display='';
+    document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
 
-      var km=(totalDist/1000).toFixed(1);
-      var h=Math.floor(totalDurSec/3600),mn=Math.round((totalDurSec%3600)/60);
-      var durStr=h>0?h+'h '+mn+'m':mn+' min';
+    routeData={startAddr:startAddr,order:order,stops:stops.slice(),n:n};
 
-      document.getElementById('stats-bar').innerHTML=
-        '<div class="stat"><div class="stat-val">'+stops.length+'</div><div class="stat-label">opriri</div></div>'+
-        '<div class="stat"><div class="stat-val">'+km+' km</div><div class="stat-label">distanță</div></div>'+
-        '<div class="stat"><div class="stat-val">'+durStr+'</div><div class="stat-label">timp est.</div></div>';
+    if(!mapObj){
+      mapObj=new google.maps.Map(document.getElementById('map'),{zoom:11,center:legs[0].start_location,disableDefaultUI:true,zoomControl:true});
+      dirRenderer.setMap(mapObj);
+    }
+    dirRenderer.setDirections(result);
 
-      var html='<li class="stop-item"><div class="stop-num start">S</div><div class="stop-info"><div class="stop-name">Start</div><div class="stop-addr">'+startAddr+'</div></div><span class="badge badge-green">Plecare</span></li>';
-      order.forEach(function(idx,i){
-        var s=stops[idx];
-        var leg=legs[i+1]||{};
-        var legDist=leg.distanceMeters?((leg.distanceMeters/1000).toFixed(1)+' km'):'';
-        var legDur=leg.duration?Math.round(parseInt(leg.duration.replace('s',''))/60)+' min':'';
-        html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+legDist+'<br>'+legDur+'</div></li>';
-      });
-      var lastLeg=legs[legs.length-1]||{};
-      var ldDist=lastLeg.distanceMeters?((lastLeg.distanceMeters/1000).toFixed(1)+' km'):'';
-      var ldDur=lastLeg.duration?Math.round(parseInt(lastLeg.duration.replace('s',''))/60)+' min':'';
-      html+='<li class="stop-item"><div class="stop-num end">↩</div><div class="stop-info"><div class="stop-name">Retur</div><div class="stop-addr">'+startAddr+'</div></div><div class="stop-time">'+ldDist+'<br>'+ldDur+'</div></li>';
-
-      document.getElementById('result-list').innerHTML=html;
-      document.getElementById('opt-msg').innerHTML='';
-      document.getElementById('result-section').style.display='';
-      document.getElementById('btn-maps').style.display='';
-      document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
-
-      routeData={startAddr:startAddr,startLatLng:startLatLng,stopLatLngs:stopLatLngs,order:order};
-
-      // Hartă cu polyline
-      if(!mapObj){
-        mapObj=new google.maps.Map(document.getElementById('map'),{zoom:11,center:startLatLng,disableDefaultUI:true,zoomControl:true});
-      }
-      if(route.polyline&&route.polyline.encodedPolyline){
-        var path=google.maps.geometry.encoding.decodePath(route.polyline.encodedPolyline);
-        new google.maps.Polyline({path:path,geodesic:true,strokeColor:'#1a1a1a',strokeWeight:4,map:mapObj});
-        new google.maps.Marker({position:startLatLng,map:mapObj,label:'S'});
-        order.forEach(function(idx,i){
-          new google.maps.Marker({position:stopLatLngs[idx],map:mapObj,label:String(i+1)});
-        });
-        var bounds=new google.maps.LatLngBounds();
-        path.forEach(function(p){bounds.extend(p);});
-        mapObj.fitBounds(bounds);
-      }
-    });
-  }).catch(function(e){
-    showMsg('opt-msg','Eroare: '+(e.message||e));
-    console.error(e);
-  }).finally(function(){
-    document.getElementById('fab-spinner').style.display='none';
-    document.getElementById('fab-label').textContent='⚡ Optimizează';
-    fab.disabled=false;
+    fabReset();
   });
 }
 
 function openInMaps(){
   if(!routeData) return;
   var d=routeData;
-  var ordered=d.order.map(function(i){return encodeURIComponent(d.stops[i].addr);});
-  var dest=ordered[ordered.length-1];
-  var wp=ordered.slice(0,-1).join('|');
-  window.open('https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+dest+(wp?'&waypoints='+wp:'')+'&travelmode=driving','_blank');
+  var orderedAddrs=d.order.map(function(i){return d.stops[i].addr;});
+  var dest=d.n>1?encodeURIComponent(d.startAddr):encodeURIComponent(orderedAddrs[0]);
+  var wp=d.n>1?orderedAddrs.map(encodeURIComponent).join('|'):'';
+  var url='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+dest+(wp?'&waypoints='+wp:'')+'&travelmode=driving';
+  window.open(url,'_blank');
 }
 
 renderStops();
