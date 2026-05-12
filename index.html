@@ -73,15 +73,21 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
 
 <div class="app">
   <div class="card">
-    <div class="card-title">Punct de plecare</div>
-    <label>Adresă predefinită</label>
-    <select id="start-preset" onchange="applyPreset()">
+    <div class="card-title">Capete traseu</div>
+    <label>Start</label>
+    <select id="start-preset" onchange="applyPreset('start')">
       <option value="">— alege sau introdu manual —</option>
       <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" selected>Atelier Jilava</option>
       <option value="Strada Berna nr. 9, Sector 1, București, România">Acasă – Berna 9, Sector 1</option>
     </select>
-    <label>Adresă de start</label>
-    <input type="text" id="start-addr" value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România"/>
+    <input type="text" id="start-addr" value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" placeholder="Adresă de start"/>
+    <label style="margin-top:6px">Finish</label>
+    <select id="finish-preset" onchange="applyPreset('finish')">
+      <option value="">— alege sau introdu manual —</option>
+      <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România">Atelier Jilava</option>
+      <option value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" selected>Acasă – Berna 9, Sector 1</option>
+    </select>
+    <input type="text" id="finish-addr" value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" placeholder="Adresă de finish"/>
   </div>
 
   <div class="card">
@@ -182,7 +188,10 @@ window.onMapsReady=function(){
   s.async=true;document.head.appendChild(s);
 })();
 
-function applyPreset(){var v=document.getElementById('start-preset').value;if(v)document.getElementById('start-addr').value=v;}
+function applyPreset(which){
+  var v=document.getElementById(which+'-preset').value;
+  if(v) document.getElementById(which+'-addr').value=v;
+}
 
 function showMsg(id,msg,type){
   var el=document.getElementById(id);
@@ -200,7 +209,7 @@ function showTab(tab,btn){
 function updateSavedSelect(){
   var s=document.getElementById('saved-sel');
   s.innerHTML='<option value="">— selectează client salvat —</option>'+
-    savedClients.map(function(c,i){return '<option value="'+i+'">'+c.name+' — '+c.addr+'</option>';}).join('');
+    savedClients.map(function(c,i){return '<option value="'+i+'">'+c.name+'</option>';}).join('');
 }
 
 function renderSavedList(){
@@ -267,16 +276,14 @@ function optimize(){
   showMsg('opt-msg','Calculez ruta...','info');
 
   var startAddr=document.getElementById('start-addr').value.trim()||'Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România';
+  var finishAddr=document.getElementById('finish-addr').value.trim()||startAddr;
   var n=stops.length;
 
-  // Dacă e o singură oprire, nu avem nevoie de optimizare waypointuri
-  var origin=startAddr;
-  var destination=n===1 ? stops[0].addr : startAddr;
-  var waypoints=n===1 ? [] : stops.map(function(s){return {location:s.addr,stopover:true};});
+  var waypoints=stops.map(function(s){return {location:s.addr,stopover:true};});
 
   dirService.route({
-    origin: origin,
-    destination: destination,
+    origin: startAddr,
+    destination: finishAddr,
     waypoints: waypoints,
     optimizeWaypoints: n>1,
     travelMode: google.maps.TravelMode.DRIVING,
@@ -288,7 +295,7 @@ function optimize(){
     }
 
     var route=result.routes[0];
-    var order=n>1 ? route.waypoint_order : [0];
+    var order=n>1 ? route.waypoint_order : (n===1?[0]:[]);
     var legs=route.legs;
 
     var totalDist=0,totalDur=0;
@@ -305,16 +312,19 @@ function optimize(){
 
     var html='<li class="stop-item"><div class="stop-num start">S</div><div class="stop-info"><div class="stop-name">Start</div><div class="stop-addr">'+startAddr+'</div></div><span class="badge badge-green">Plecare</span></li>';
 
-    order.forEach(function(idx,i){
-      var s=stops[idx];
-      var l=legs[i];
-      html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+l.distance.text+'<br>'+l.duration.text+'</div></li>';
-    });
-
-    if(n>1){
-      var ll=legs[legs.length-1];
-      html+='<li class="stop-item"><div class="stop-num end">↩</div><div class="stop-info"><div class="stop-name">Retur</div><div class="stop-addr">'+startAddr+'</div></div><div class="stop-time">'+ll.distance.text+'<br>'+ll.duration.text+'</div></li>';
+    if(n===0){
+      var l0=legs[0];
+      html+='';
+    } else {
+      order.forEach(function(idx,i){
+        var s=stops[idx];
+        var l=legs[i];
+        html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+l.distance.text+'<br>'+l.duration.text+'</div></li>';
+      });
     }
+
+    var ll=legs[legs.length-1];
+    html+='<li class="stop-item"><div class="stop-num end">F</div><div class="stop-info"><div class="stop-name">Finish</div><div class="stop-addr">'+finishAddr+'</div></div><div class="stop-time">'+ll.distance.text+'<br>'+ll.duration.text+'</div></li>';
 
     document.getElementById('result-list').innerHTML=html;
     document.getElementById('opt-msg').innerHTML='';
@@ -322,7 +332,7 @@ function optimize(){
     document.getElementById('btn-maps').style.display='';
     document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
 
-    routeData={startAddr:startAddr,order:order,stops:stops.slice(),n:n};
+    routeData={startAddr:startAddr,finishAddr:finishAddr,order:order,stops:stops.slice(),n:n};
 
     if(!mapObj){
       mapObj=new google.maps.Map(document.getElementById('map'),{zoom:11,center:legs[0].start_location,disableDefaultUI:true,zoomControl:true});
@@ -338,9 +348,8 @@ function openInMaps(){
   if(!routeData) return;
   var d=routeData;
   var orderedAddrs=d.order.map(function(i){return d.stops[i].addr;});
-  var dest=d.n>1?encodeURIComponent(d.startAddr):encodeURIComponent(orderedAddrs[0]);
-  var wp=d.n>1?orderedAddrs.map(encodeURIComponent).join('|'):'';
-  var url='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+dest+(wp?'&waypoints='+wp:'')+'&travelmode=driving';
+  var wp=orderedAddrs.map(encodeURIComponent).join('|');
+  var url='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+encodeURIComponent(d.finishAddr)+(wp?'&waypoints='+wp:'')+'&travelmode=driving';
   window.open(url,'_blank');
 }
 
