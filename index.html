@@ -37,8 +37,10 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
 .stop-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stop-addr{font-size:12px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stop-time{font-size:12px;color:#555;flex-shrink:0;text-align:right;white-space:nowrap}
-.stop-del{font-size:22px;color:#ccc;cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1}
-.stop-del:active{color:#e74c3c}
+.stop-actions{display:flex;gap:4px;flex-shrink:0}
+.stop-del,.stop-edit{font-size:18px;cursor:pointer;padding:2px 5px;border-radius:6px;line-height:1;border:none;background:none}
+.stop-del{color:#ccc}.stop-del:active{color:#e74c3c}
+.stop-edit{color:#aaa}.stop-edit:active{color:#1a1a1a}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .stat{background:#f5f5f0;border-radius:10px;padding:10px 8px;text-align:center}
 .stat-val{font-size:18px;font-weight:700}
@@ -60,6 +62,18 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
 .db-status{font-size:11px;padding:3px 10px;border-radius:100px}
 .db-ok{background:#e8f8ef;color:#27ae60}
 .db-err{background:#fff0f0;color:#c0392b}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:20px;width:90%;max-width:400px;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.modal-btns{display:flex;gap:8px;margin-top:4px}
+.modal-btns .btn{flex:1;justify-content:center}
+/* Capete traseu */
+.endpoint-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.endpoint-label{font-size:12px;font-weight:700;color:#fff;background:#1a1a1a;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.endpoint-label.fin{background:#2980b9}
+.endpoint-row select{margin-bottom:0;flex:1}
 </style>
 </head>
 <body>
@@ -72,24 +86,33 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
 </header>
 
 <div class="app">
+
+  <!-- Capete traseu -->
   <div class="card">
     <div class="card-title">Capete traseu</div>
-    <label>Start</label>
-    <select id="start-preset" onchange="applyPreset('start')">
-      <option value="">— alege sau introdu manual —</option>
-      <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" selected>Atelier Jilava</option>
-      <option value="Strada Berna nr. 9, Sector 1, București, România">Acasă – Berna 9, Sector 1</option>
-    </select>
-    <input type="text" id="start-addr" value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" placeholder="Adresă de start"/>
-    <label style="margin-top:6px">Finish</label>
-    <select id="finish-preset" onchange="applyPreset('finish')">
-      <option value="">— alege sau introdu manual —</option>
-      <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România">Atelier Jilava</option>
-      <option value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" selected>Acasă – Berna 9, Sector 1</option>
-    </select>
-    <input type="text" id="finish-addr" value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" placeholder="Adresă de finish"/>
+    <div class="endpoint-row">
+      <div class="endpoint-label">S</div>
+      <select id="start-sel" onchange="applyEndpoint('start')">
+        <option value="">— start —</option>
+        <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" selected>Atelier Jilava</option>
+        <option value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România">Acasă</option>
+        <option value="__custom__">Altă adresă...</option>
+      </select>
+    </div>
+    <input type="text" id="start-addr" value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România" placeholder="Adresă de start" style="display:none"/>
+    <div class="endpoint-row">
+      <div class="endpoint-label fin">F</div>
+      <select id="finish-sel" onchange="applyEndpoint('finish')">
+        <option value="">— finish —</option>
+        <option value="Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România">Atelier Jilava</option>
+        <option value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" selected>Acasă</option>
+        <option value="__custom__">Altă adresă...</option>
+      </select>
+    </div>
+    <input type="text" id="finish-addr" value="Strada Berna nr. 9, Apartament 1, Sector 1, București, România" placeholder="Adresă de finish" style="display:none"/>
   </div>
 
+  <!-- Adaugă oprire -->
   <div class="card">
     <div class="card-title">Adaugă oprire</div>
     <label>Nume magazin / client</label>
@@ -100,11 +123,12 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
     <div id="add-msg"></div>
     <div style="margin-top:14px;border-top:1px solid #f0f0eb;padding-top:14px">
       <div class="card-title">Sau alege din clienți salvați</div>
-      <select id="saved-sel"><option value="">— selectează client salvat —</option></select>
+      <select id="saved-sel"><option value="">— selectează client —</option></select>
       <button class="btn btn-outline btn-sm" style="margin-top:4px;width:100%;justify-content:center" onclick="addFromSaved()">Adaugă în rută</button>
     </div>
   </div>
 
+  <!-- Rută / Clienți -->
   <div class="card">
     <div class="tabs">
       <button class="tab active" onclick="showTab('ruta',this)">Rută curentă</button>
@@ -123,6 +147,7 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
     </div>
   </div>
 
+  <!-- Rezultat -->
   <div class="card" id="result-section" style="display:none">
     <div class="card-title">Rută optimizată</div>
     <div class="stats" id="stats-bar"></div>
@@ -137,12 +162,28 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
   <span id="fab-label">⚡ Optimizează</span>
 </button>
 
+<!-- Modal editare -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Modifică oprire</h3>
+    <label>Nume</label>
+    <input type="text" id="modal-name" placeholder="Nume client"/>
+    <label>Adresă</label>
+    <input type="text" id="modal-addr" placeholder="Adresă completă"/>
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeModal()">Anulează</button>
+      <button class="btn btn-primary" onclick="saveModal()">Salvează</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 var MAPS_KEY='AIzaSyB7EFgDv4_98KNb5sLsly-jQriDfixlll4';
 var stops=[],savedClients=[],routeData=null;
 var geocoder,dirService,dirRenderer,mapObj,mapsReady=false;
+var modalMode=null,modalId=null; // 'stop' sau 'client'
 
 firebase.initializeApp({
   apiKey:'AIzaSyB7EFgDv4_98KNb5sLsly-jQriDfixlll4',
@@ -156,21 +197,22 @@ firebase.initializeApp({
 var FS='https://firestore.googleapis.com/v1/projects/chef-sosin-livrari-4b835/databases/adreseclienti/documents/clients';
 
 function dbOk(v){var e=document.getElementById('db-status');e.textContent=v?'🟢 DB':'🔴 DB';e.className='db-status '+(v?'db-ok':'db-err');}
-
 function docToClient(d){var f=d.fields||{};return {id:d.name.split('/').pop(),name:(f.name||{}).stringValue||'',addr:(f.addr||{}).stringValue||'',createdAt:+((f.createdAt||{}).integerValue||0)};}
-
 function loadClients(){
-  fetch(FS+'?key='+MAPS_KEY)
-    .then(function(r){return r.json();})
-    .then(function(data){
-      savedClients=(data.documents||[]).map(docToClient).sort(function(a,b){return a.createdAt-b.createdAt;});
-      updateSavedSelect();renderSavedList();dbOk(true);
-      setTimeout(loadClients,15000);
-    }).catch(function(){dbOk(false);setTimeout(loadClients,6000);});
+  fetch(FS+'?key='+MAPS_KEY).then(function(r){return r.json();}).then(function(data){
+    savedClients=(data.documents||[]).map(docToClient).sort(function(a,b){return a.createdAt-b.createdAt;});
+    updateSavedSelect();renderSavedList();dbOk(true);
+    setTimeout(loadClients,15000);
+  }).catch(function(){dbOk(false);setTimeout(loadClients,6000);});
 }
 function saveClient(n,a){
   return fetch(FS+'?key='+MAPS_KEY,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({fields:{name:{stringValue:n},addr:{stringValue:a},createdAt:{integerValue:Date.now()}}})});
+}
+function updateClient(id,n,a){
+  return fetch(FS+'/'+id+'?key='+MAPS_KEY+'&updateMask.fieldPaths=name&updateMask.fieldPaths=addr',{
+    method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({fields:{name:{stringValue:n},addr:{stringValue:a}}})});
 }
 function deleteClientRest(id){return fetch(FS+'/'+id+'?key='+MAPS_KEY,{method:'DELETE'});}
 
@@ -178,19 +220,26 @@ window.onMapsReady=function(){
   geocoder=new google.maps.Geocoder();
   dirService=new google.maps.DirectionsService();
   dirRenderer=new google.maps.DirectionsRenderer({suppressMarkers:false});
-  mapsReady=true;
-  loadClients();
+  mapsReady=true;loadClients();
 };
+(function(){var s=document.createElement('script');s.src='https://maps.googleapis.com/maps/api/js?key='+MAPS_KEY+'&callback=onMapsReady&loading=async';s.async=true;document.head.appendChild(s);})();
 
-(function(){
-  var s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+MAPS_KEY+'&callback=onMapsReady&loading=async';
-  s.async=true;document.head.appendChild(s);
-})();
-
-function applyPreset(which){
-  var v=document.getElementById(which+'-preset').value;
-  if(v) document.getElementById(which+'-addr').value=v;
+// Endpoint (start/finish)
+function applyEndpoint(which){
+  var sel=document.getElementById(which+'-sel');
+  var inp=document.getElementById(which+'-addr');
+  if(sel.value==='__custom__'){
+    inp.style.display='';inp.focus();
+  } else {
+    inp.style.display='none';
+    inp.value=sel.value;
+  }
+}
+function getEndpointAddr(which){
+  var sel=document.getElementById(which+'-sel');
+  var inp=document.getElementById(which+'-addr');
+  if(sel.value==='__custom__') return inp.value.trim();
+  return sel.value;
 }
 
 function showMsg(id,msg,type){
@@ -198,28 +247,24 @@ function showMsg(id,msg,type){
   el.innerHTML='<div class="msg msg-'+(type||'error')+'">'+msg+'</div>';
   if(type!=='info') setTimeout(function(){if(el.innerHTML.indexOf(msg)>-1)el.innerHTML='';},6000);
 }
-
 function showTab(tab,btn){
   document.getElementById('tab-ruta').style.display=tab==='ruta'?'':'none';
   document.getElementById('tab-clienti').style.display=tab==='clienti'?'':'none';
-  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
-  btn.classList.add('active');
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});btn.classList.add('active');
 }
-
 function updateSavedSelect(){
   var s=document.getElementById('saved-sel');
-  s.innerHTML='<option value="">— selectează client salvat —</option>'+
+  s.innerHTML='<option value="">— selectează client —</option>'+
     savedClients.map(function(c,i){return '<option value="'+i+'">'+c.name+'</option>';}).join('');
 }
-
 function renderSavedList(){
   var w=document.getElementById('saved-list-wrap');
   if(!savedClients.length){w.innerHTML='<p class="empty">Niciun client salvat.</p>';return;}
   w.innerHTML='<ul class="stop-list">'+savedClients.map(function(c){
-    return '<li class="stop-item"><div class="stop-info"><div class="stop-name">'+c.name+'</div><div class="stop-addr">'+c.addr+'</div></div><span class="stop-del" onclick="deleteClient(\''+c.id+'\')">×</span></li>';
+    return '<li class="stop-item"><div class="stop-info"><div class="stop-name">'+c.name+'</div><div class="stop-addr">'+c.addr+'</div></div>'+
+      '<div class="stop-actions"><button class="stop-edit" onclick="openModalClient(\''+c.id+'\')">✏️</button><button class="stop-del" onclick="deleteClient(\''+c.id+'\')">×</button></div></li>';
   }).join('')+'</ul>';
 }
-
 function renderStops(){
   var w=document.getElementById('stop-list-wrap');
   document.getElementById('btn-clear').style.display=stops.length?'':'none';
@@ -227,7 +272,9 @@ function renderStops(){
   document.getElementById('stop-count-hdr').textContent=stops.length?stops.length+' opriri':'';
   if(!stops.length){w.innerHTML='<p class="empty">Nicio oprire adăugată încă.<br>Adaugă adrese mai sus.</p>';return;}
   w.innerHTML='<ul class="stop-list">'+stops.map(function(s,i){
-    return '<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><span class="stop-del" onclick="removeStop(\''+s.id+'\')">×</span></li>';
+    return '<li class="stop-item"><div class="stop-num">'+(i+1)+'</div>'+
+      '<div class="stop-info"><div class="stop-name">'+s.name+'</div></div>'+
+      '<div class="stop-actions"><button class="stop-edit" onclick="openModalStop(\''+s.id+'\')">✏️</button><button class="stop-del" onclick="removeStop(\''+s.id+'\')">×</button></div></li>';
   }).join('')+'</ul>';
 }
 
@@ -239,12 +286,10 @@ function addStop(){
   if(!savedClients.find(function(c){return c.name===name&&c.addr===addr;})){
     saveClient(name,addr).then(loadClients).catch(function(e){showMsg('add-msg','Eroare salvare: '+e.message);});
   }
-  document.getElementById('inp-name').value='';
-  document.getElementById('inp-addr').value='';
+  document.getElementById('inp-name').value='';document.getElementById('inp-addr').value='';
   routeData=null;document.getElementById('result-section').style.display='none';
   renderStops();showMsg('add-msg','„'+name+'" adăugat în rută.','info');
 }
-
 function addFromSaved(){
   var sel=document.getElementById('saved-sel');
   var idx=parseInt(sel.value);
@@ -255,52 +300,71 @@ function addFromSaved(){
   sel.value='';routeData=null;document.getElementById('result-section').style.display='none';
   renderStops();showMsg('add-msg','„'+c.name+'" adăugat.','info');
 }
-
 function removeStop(id){stops=stops.filter(function(s){return s.id!==id;});routeData=null;document.getElementById('result-section').style.display='none';renderStops();}
 function deleteClient(id){deleteClientRest(id).then(loadClients).catch(function(e){showMsg('add-msg','Eroare: '+e.message);});}
 function clearRoute(){stops=[];routeData=null;document.getElementById('result-section').style.display='none';renderStops();}
 
-function fabReset(){
-  document.getElementById('fab-spinner').style.display='none';
-  document.getElementById('fab-label').textContent='⚡ Optimizează';
-  document.getElementById('fab-btn').disabled=false;
+// Modal
+function openModalStop(id){
+  var s=stops.find(function(x){return x.id===id;});if(!s)return;
+  modalMode='stop';modalId=id;
+  document.getElementById('modal-title').textContent='Modifică oprire';
+  document.getElementById('modal-name').value=s.name;
+  document.getElementById('modal-addr').value=s.addr;
+  document.getElementById('modal').classList.add('open');
 }
+function openModalClient(id){
+  var c=savedClients.find(function(x){return x.id===id;});if(!c)return;
+  modalMode='client';modalId=id;
+  document.getElementById('modal-title').textContent='Modifică client salvat';
+  document.getElementById('modal-name').value=c.name;
+  document.getElementById('modal-addr').value=c.addr;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');modalMode=null;modalId=null;}
+function saveModal(){
+  var name=document.getElementById('modal-name').value.trim();
+  var addr=document.getElementById('modal-addr').value.trim();
+  if(!name||!addr){alert('Completează ambele câmpuri.');return;}
+  if(modalMode==='stop'){
+    stops=stops.map(function(s){return s.id===modalId?{id:s.id,name:name,addr:addr}:s;});
+    routeData=null;document.getElementById('result-section').style.display='none';
+    renderStops();closeModal();
+  } else if(modalMode==='client'){
+    updateClient(modalId,name,addr).then(loadClients).catch(function(e){alert('Eroare: '+e.message);});
+    closeModal();
+  }
+}
+document.getElementById('modal').addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+function fabReset(){document.getElementById('fab-spinner').style.display='none';document.getElementById('fab-label').textContent='⚡ Optimizează';document.getElementById('fab-btn').disabled=false;}
 
 function optimize(){
   if(!mapsReady){showMsg('opt-msg','Harta nu e gata, mai așteaptă câteva secunde.');return;}
   if(!stops.length){showMsg('opt-msg','Adaugă cel puțin un punct de livrare.');return;}
-
   document.getElementById('fab-spinner').style.display='';
   document.getElementById('fab-label').textContent='Se calculează...';
   document.getElementById('fab-btn').disabled=true;
   showMsg('opt-msg','Calculez ruta...','info');
 
-  var startAddr=document.getElementById('start-addr').value.trim()||'Șoseaua Giurgiului 33A, Jilava, județul Ilfov, România';
-  var finishAddr=document.getElementById('finish-addr').value.trim()||startAddr;
+  var startAddr=getEndpointAddr('start');
+  var finishAddr=getEndpointAddr('finish');
+  if(!startAddr){showMsg('opt-msg','Selectează adresa de start.');fabReset();return;}
+  if(!finishAddr){showMsg('opt-msg','Selectează adresa de finish.');fabReset();return;}
   var n=stops.length;
-
   var waypoints=stops.map(function(s){return {location:s.addr,stopover:true};});
 
   dirService.route({
-    origin: startAddr,
-    destination: finishAddr,
-    waypoints: waypoints,
-    optimizeWaypoints: n>1,
-    travelMode: google.maps.TravelMode.DRIVING,
-    region: 'ro'
-  }, function(result, status){
-    if(status!==google.maps.DirectionsStatus.OK){
-      showMsg('opt-msg','Eroare: '+status);
-      fabReset();return;
-    }
-
+    origin:startAddr, destination:finishAddr,
+    waypoints:waypoints, optimizeWaypoints:n>1,
+    travelMode:google.maps.TravelMode.DRIVING, region:'ro'
+  },function(result,status){
+    if(status!==google.maps.DirectionsStatus.OK){showMsg('opt-msg','Eroare: '+status);fabReset();return;}
     var route=result.routes[0];
-    var order=n>1 ? route.waypoint_order : (n===1?[0]:[]);
+    var order=n>1?route.waypoint_order:(n===1?[0]:[]);
     var legs=route.legs;
-
     var totalDist=0,totalDur=0;
     legs.forEach(function(l){totalDist+=l.distance.value;totalDur+=l.duration.value;});
-
     var km=(totalDist/1000).toFixed(1);
     var h=Math.floor(totalDur/3600),mn=Math.round((totalDur%3600)/60);
     var durStr=h>0?h+'h '+mn+'m':mn+' min';
@@ -310,47 +374,35 @@ function optimize(){
       '<div class="stat"><div class="stat-val">'+km+' km</div><div class="stat-label">distanță</div></div>'+
       '<div class="stat"><div class="stat-val">'+durStr+'</div><div class="stat-label">timp est.</div></div>';
 
-    var html='<li class="stop-item"><div class="stop-num start">S</div><div class="stop-info"><div class="stop-name">Start</div><div class="stop-addr">'+startAddr+'</div></div><span class="badge badge-green">Plecare</span></li>';
+    var startLabel=document.getElementById('start-sel').value==='__custom__'?'Start':document.getElementById('start-sel').options[document.getElementById('start-sel').selectedIndex].text;
+    var finishLabel=document.getElementById('finish-sel').value==='__custom__'?'Finish':document.getElementById('finish-sel').options[document.getElementById('finish-sel').selectedIndex].text;
 
-    if(n===0){
-      var l0=legs[0];
-      html+='';
-    } else {
-      order.forEach(function(idx,i){
-        var s=stops[idx];
-        var l=legs[i];
-        html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+l.distance.text+'<br>'+l.duration.text+'</div></li>';
-      });
-    }
-
+    var html='<li class="stop-item"><div class="stop-num start">S</div><div class="stop-info"><div class="stop-name">'+startLabel+'</div><div class="stop-addr">'+startAddr+'</div></div><span class="badge badge-green">Plecare</span></li>';
+    order.forEach(function(idx,i){
+      var s=stops[idx];var l=legs[i];
+      html+='<li class="stop-item"><div class="stop-num">'+(i+1)+'</div><div class="stop-info"><div class="stop-name">'+s.name+'</div><div class="stop-addr">'+s.addr+'</div></div><div class="stop-time">'+l.distance.text+'<br>'+l.duration.text+'</div></li>';
+    });
     var ll=legs[legs.length-1];
-    html+='<li class="stop-item"><div class="stop-num end">F</div><div class="stop-info"><div class="stop-name">Finish</div><div class="stop-addr">'+finishAddr+'</div></div><div class="stop-time">'+ll.distance.text+'<br>'+ll.duration.text+'</div></li>';
+    html+='<li class="stop-item"><div class="stop-num end">F</div><div class="stop-info"><div class="stop-name">'+finishLabel+'</div><div class="stop-addr">'+finishAddr+'</div></div><div class="stop-time">'+ll.distance.text+'<br>'+ll.duration.text+'</div></li>';
 
     document.getElementById('result-list').innerHTML=html;
     document.getElementById('opt-msg').innerHTML='';
     document.getElementById('result-section').style.display='';
     document.getElementById('btn-maps').style.display='';
     document.getElementById('result-section').scrollIntoView({behavior:'smooth'});
-
     routeData={startAddr:startAddr,finishAddr:finishAddr,order:order,stops:stops.slice(),n:n};
 
-    if(!mapObj){
-      mapObj=new google.maps.Map(document.getElementById('map'),{zoom:11,center:legs[0].start_location,disableDefaultUI:true,zoomControl:true});
-      dirRenderer.setMap(mapObj);
-    }
+    if(!mapObj){mapObj=new google.maps.Map(document.getElementById('map'),{zoom:11,center:legs[0].start_location,disableDefaultUI:true,zoomControl:true});dirRenderer.setMap(mapObj);}
     dirRenderer.setDirections(result);
-
     fabReset();
   });
 }
 
 function openInMaps(){
-  if(!routeData) return;
+  if(!routeData)return;
   var d=routeData;
-  var orderedAddrs=d.order.map(function(i){return d.stops[i].addr;});
-  var wp=orderedAddrs.map(encodeURIComponent).join('|');
-  var url='https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+encodeURIComponent(d.finishAddr)+(wp?'&waypoints='+wp:'')+'&travelmode=driving';
-  window.open(url,'_blank');
+  var wp=d.order.map(function(i){return encodeURIComponent(d.stops[i].addr);}).join('|');
+  window.open('https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(d.startAddr)+'&destination='+encodeURIComponent(d.finishAddr)+(wp?'&waypoints='+wp:'')+'&travelmode=driving','_blank');
 }
 
 renderStops();
